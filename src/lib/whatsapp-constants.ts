@@ -1,0 +1,1 @@
+export const GROUP_CHAT_JID = "120363404908229001@g.us";

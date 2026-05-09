@@ -1,0 +1,1 @@
+ALTER TABLE "logs" DROP COLUMN "previous_log_text";
