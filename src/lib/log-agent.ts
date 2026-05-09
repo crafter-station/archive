@@ -18,6 +18,10 @@ type AgentMessage = Awaited<
   >
 >[number];
 
+function imageMedia(message: AgentMessage) {
+  return message.media.filter((media) => media.mediaType === "image");
+}
+
 function messageText(message: AgentMessage) {
   if (message.messageType !== "text" && message.caption) {
     return message.caption;
@@ -40,9 +44,19 @@ export function serializeMessagesForLogAgent(
         ? formatLocalDateTime(message.sentAt, timezone)
         : null,
       receivedAt: formatLocalDateTime(message.receivedAt, timezone),
+      images: imageMedia(message).map((media) => ({
+        blobUrl: media.blobUrl,
+        caption: message.caption ?? null,
+        fileName: media.fileName ?? null,
+        height: media.height ?? null,
+        mimeType: media.mimeType ?? null,
+        width: media.width ?? null,
+      })),
       text: messageText(message),
     }))
-    .filter((message) => message.text.trim().length > 0);
+    .filter(
+      (message) => message.text.trim().length > 0 || message.images.length > 0,
+    );
 }
 
 export async function runLogAgent({
