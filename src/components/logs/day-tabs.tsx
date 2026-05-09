@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { cn } from "@/lib/utils";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const dayTabs = ["logs", "ships", "resources", "events"] as const;
 export type DayTab = (typeof dayTabs)[number];
@@ -18,21 +18,19 @@ export function DayTabs({
   date: string;
 }) {
   return (
-    <nav className="grid grid-cols-2 border border-border md:inline-grid md:grid-cols-4">
-      {dayTabs.map((tab) => (
-        <Link
-          className={cn(
-            "px-4 py-2 text-center text-xs font-medium uppercase tracking-[0.16em] transition-colors",
-            activeTab === tab
-              ? "bg-primary text-primary-foreground"
-              : "bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
-          )}
-          href={`/${date}?tab=${tab}`}
-          key={tab}
-        >
-          {tab}
-        </Link>
-      ))}
-    </nav>
+    <Tabs className="w-full" value={activeTab}>
+      <TabsList className="grid h-auto w-full grid-cols-2 p-0 md:grid-cols-4">
+        {dayTabs.map((tab) => (
+          <TabsTrigger
+            className="h-10 px-4 py-2 uppercase tracking-[0.16em]"
+            key={tab}
+            render={<Link href={`/${date}?tab=${tab}`} />}
+            value={tab}
+          >
+            {tab}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
   );
 }
