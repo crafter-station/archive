@@ -126,15 +126,12 @@ export async function getMessagesForAgentContext(
       asc(message.receivedAt),
       asc(message.createdAt),
     ],
-    where: (message, { and, eq, gte, lt, or }) =>
+    where: (message, { and, eq, gte, lt }) =>
       and(
         eq(message.chatJid, GROUP_CHAT_JID),
         gte(message.receivedAt, contextStartUtc),
         lt(message.receivedAt, windowEndUtc),
-        or(
-          eq(message.messageType, "conversation"),
-          eq(message.messageType, "extendedTextMessage"),
-        ),
+        eq(message.messageType, "text"),
       ),
     with: {
       sender: true,
