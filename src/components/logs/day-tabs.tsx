@@ -18,14 +18,17 @@ export function DayTabs({
   date: string;
 }) {
   return (
-    <nav className="grid grid-cols-2 border border-border md:inline-grid md:grid-cols-4">
+    <nav
+      aria-label="Daily archive sections"
+      className="grid w-full grid-cols-2 bg-muted p-[3px] md:grid-cols-4"
+    >
       {dayTabs.map((tab) => (
         <Link
+          aria-current={activeTab === tab ? "page" : undefined}
           className={cn(
-            "px-4 py-2 text-center text-xs font-medium uppercase tracking-[0.16em] transition-colors",
-            activeTab === tab
-              ? "bg-primary text-primary-foreground"
-              : "bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
+            "flex h-10 items-center justify-center border border-transparent px-4 py-2 text-center text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:bg-background/70 hover:text-foreground",
+            activeTab === tab &&
+              "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
           )}
           href={`/${date}?tab=${tab}`}
           key={tab}

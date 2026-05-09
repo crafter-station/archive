@@ -34,8 +34,8 @@ export default async function DayPage({ params, searchParams }: DayPageProps) {
 
   return (
     <main className="flex min-h-screen flex-col bg-background">
-      <header className="sticky top-0 z-10 border-border border-b bg-background/90 px-4 py-4 backdrop-blur md:px-8">
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
+      <header className="sticky top-0 z-10 border-border border-b bg-background/90 py-4 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 md:px-8">
           <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
             <div>
               <p className="text-muted-foreground text-xs uppercase tracking-[0.16em]">
@@ -52,7 +52,7 @@ export default async function DayPage({ params, searchParams }: DayPageProps) {
         </div>
       </header>
 
-      <section className="mx-auto w-full max-w-5xl flex-1 space-y-4 px-4 py-6 md:px-8">
+      <section className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 py-6 md:px-8">
         {activeTab === "logs" ? (
           dashboard.logs.length > 0 ? (
             dashboard.logs.map((log) => <LogCard key={log.id} {...log} />)
