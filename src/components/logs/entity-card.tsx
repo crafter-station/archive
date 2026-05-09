@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 import { formatLocalDateTime } from "@/lib/log-windows";
 
 type EntityCardProps = {
@@ -42,9 +40,7 @@ export function EntityCard({
       <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground">
         {time ? <span>{formatLocalDateTime(time, timezone)}</span> : null}
         {participant ? <span>Shared by {participant}</span> : null}
-        {messageId ? (
-          <Link href={`/?thread=${messageId}`}>Source message</Link>
-        ) : null}
+        {messageId ? <span>Source message {messageId}</span> : null}
         {footer ? <span>{footer}</span> : null}
       </div>
     </article>
