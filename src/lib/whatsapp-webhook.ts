@@ -9,6 +9,7 @@ import {
   messages,
   webhookEvents,
 } from "@/db/schema";
+import { transcribeAudioFromUrl } from "@/lib/audio-transcription";
 import { GROUP_CHAT_JID } from "@/lib/whatsapp-constants";
 import {
   extractMediaMessages,
@@ -184,8 +185,39 @@ async function upsertMessage(message: WhatsAppMessage) {
     .returning();
 
   await uploadMissingMedia(storedMessage, chatJid, media);
+  await updateAudioTranscription(storedMessage.id);
   await resolveRepliesToMessage(storedMessage);
   await resolveReactionsToMessage(storedMessage);
+}
+
+async function updateAudioTranscription(messageId: string) {
+  const [audio] = await db
+    .select({
+      blobUrl: messageMedia.blobUrl,
+      mediaType: messageMedia.mediaType,
+    })
+    .from(messageMedia)
+    .where(
+      and(
+        eq(messageMedia.messageId, messageId),
+        eq(messageMedia.mediaType, "audio"),
+      ),
+    )
+    .limit(1);
+
+  if (!audio?.blobUrl || audio.mediaType !== "audio") {
+    return;
+  }
+
+  try {
+    const audioTranscription = await transcribeAudioFromUrl(audio.blobUrl);
+    await db
+      .update(messages)
+      .set({ audioTranscription, updatedAt: new Date() })
+      .where(eq(messages.id, messageId));
+  } catch (error) {
+    console.error("Failed to transcribe audio message", error);
+  }
 }
 
 async function upsertReaction(

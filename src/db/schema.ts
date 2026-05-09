@@ -44,6 +44,7 @@ export const messages = pgTable(
     messageType: text("message_type").notNull(),
     body: text("body"),
     caption: text("caption"),
+    audioTranscription: text("audio_transcription"),
     sentAt: timestamp("sent_at", { withTimezone: true }),
     receivedAt: timestamp("received_at", { withTimezone: true })
       .notNull()
