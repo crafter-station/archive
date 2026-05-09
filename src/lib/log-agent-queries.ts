@@ -133,6 +133,9 @@ export async function getMessagesForAgentContext(
         lt(message.receivedAt, windowEndUtc),
       ),
     with: {
+      media: {
+        orderBy: (media, { asc }) => [asc(media.sortOrder)],
+      },
       sender: true,
     },
   });
