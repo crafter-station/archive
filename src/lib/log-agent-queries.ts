@@ -11,7 +11,7 @@ import {
 import { getLocalDateRangeUtc } from "@/lib/log-windows";
 import { GROUP_CHAT_JID } from "@/lib/whatsapp-constants";
 
-export const LOG_AGENT_PROMPT_VERSION = "2026-05-09.v1";
+export const LOG_AGENT_PROMPT_VERSION = "2026-05-09.v2";
 
 export async function createOrReuseRunningLog({
   contextStartUtc,
