@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { tasks } from "@trigger.dev/sdk/v3";
 import { and, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/db/client";
@@ -184,8 +185,35 @@ async function upsertMessage(message: WhatsAppMessage) {
     .returning();
 
   await uploadMissingMedia(storedMessage, chatJid, media);
+  await enqueueAudioTranscription(storedMessage.id, storedMessage.messageType);
   await resolveRepliesToMessage(storedMessage);
   await resolveReactionsToMessage(storedMessage);
+}
+
+async function enqueueAudioTranscription(
+  messageId: string,
+  messageType: Message["messageType"],
+) {
+  if (messageType !== "audio") {
+    return;
+  }
+
+  await db
+    .update(messages)
+    .set({
+      audioTranscriptionError: null,
+      audioTranscriptionStatus: "pending",
+      updatedAt: new Date(),
+    })
+    .where(eq(messages.id, messageId));
+
+  await tasks.trigger(
+    "transcribe-audio-message",
+    { messageId },
+    {
+      idempotencyKey: `audio-transcription:${messageId}`,
+    },
+  );
 }
 
 async function upsertReaction(

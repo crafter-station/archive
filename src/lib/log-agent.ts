@@ -19,11 +19,16 @@ type AgentMessage = Awaited<
 >[number];
 
 function messageText(message: AgentMessage) {
-  if (message.messageType !== "text" && message.caption) {
-    return message.caption;
+  const fallbackText =
+    message.messageType !== "text" && message.caption
+      ? message.caption
+      : (message.body ?? message.caption ?? "");
+
+  if (message.audioTranscription?.trim()) {
+    return `${fallbackText}\nAudio transcription: ${message.audioTranscription.trim()}`.trim();
   }
 
-  return message.body ?? message.caption ?? "";
+  return fallbackText;
 }
 
 export function serializeMessagesForLogAgent(
