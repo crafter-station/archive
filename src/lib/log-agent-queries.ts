@@ -445,7 +445,7 @@ export async function getDayDashboard(date: string, timezone: string) {
 
   const [dayLogs, dayShips, dayResources, dayEvents] = await Promise.all([
     db.query.logs.findMany({
-      orderBy: [asc(logs.windowStartUtc)],
+      orderBy: [desc(logs.windowStartUtc)],
       where: and(
         lt(logs.windowStartUtc, endUtc),
         gte(logs.windowEndUtc, startUtc),
