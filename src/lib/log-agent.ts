@@ -19,10 +19,17 @@ type AgentMessage = Awaited<
 >[number];
 
 function messageText(message: AgentMessage) {
+  if (message.messageType !== "text" && message.caption) {
+    return message.caption;
+  }
+
   return message.body ?? message.caption ?? "";
 }
 
-function serializeMessages(messages: AgentMessage[], timezone: string) {
+export function serializeMessagesForLogAgent(
+  messages: AgentMessage[],
+  timezone: string,
+) {
   return messages
     .map((message) => ({
       id: message.id,
@@ -109,7 +116,7 @@ Rules:
         importance: memory.importance,
         key: memory.key,
       })),
-      messages: serializeMessages(messages, timezone),
+      messages: serializeMessagesForLogAgent(messages, timezone),
       previousLogText,
       timezone,
       window: {
