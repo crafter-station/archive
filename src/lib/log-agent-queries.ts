@@ -131,7 +131,6 @@ export async function getMessagesForAgentContext(
         eq(message.chatJid, GROUP_CHAT_JID),
         gte(message.receivedAt, contextStartUtc),
         lt(message.receivedAt, windowEndUtc),
-        eq(message.messageType, "text"),
       ),
     with: {
       sender: true,
