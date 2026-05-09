@@ -16,7 +16,7 @@ export function WeekCalendar({
   activeTab: DayTab;
   date: string;
 }) {
-  const days = getWeekDays(date);
+  const days = getWeekDays(date).toReversed();
   const today = formatLocalDate(new Date(), DEFAULT_LOG_TIMEZONE);
   const previousWeek = shiftLocalDate(date, -7);
   const nextWeek = shiftLocalDate(date, 7);
