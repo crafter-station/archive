@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 
 export const dayTabs = ["logs", "ships", "resources", "events"] as const;
 export type DayTab = (typeof dayTabs)[number];
@@ -18,20 +18,24 @@ export function DayTabs({
   date: string;
 }) {
   return (
-    <Tabs className="w-full" value={activeTab}>
-      <TabsList className="grid h-auto w-full grid-cols-2 p-0 md:grid-cols-4">
-        {dayTabs.map((tab) => (
-          <TabsTrigger
-            className="h-10 border-border/70 bg-muted/70 px-4 py-2 uppercase tracking-[0.16em] text-muted-foreground hover:bg-muted hover:text-foreground data-active:bg-primary data-active:text-primary-foreground data-active:shadow-none"
-            key={tab}
-            nativeButton={false}
-            render={<Link href={`/${date}?tab=${tab}`} />}
-            value={tab}
-          >
-            {tab}
-          </TabsTrigger>
-        ))}
-      </TabsList>
-    </Tabs>
+    <nav
+      aria-label="Daily archive sections"
+      className="grid w-full grid-cols-2 bg-muted p-[3px] md:grid-cols-4"
+    >
+      {dayTabs.map((tab) => (
+        <Link
+          aria-current={activeTab === tab ? "page" : undefined}
+          className={cn(
+            "flex h-10 items-center justify-center border border-transparent px-4 py-2 text-center text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:bg-background/70 hover:text-foreground",
+            activeTab === tab &&
+              "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
+          )}
+          href={`/${date}?tab=${tab}`}
+          key={tab}
+        >
+          {tab}
+        </Link>
+      ))}
+    </nav>
   );
 }
