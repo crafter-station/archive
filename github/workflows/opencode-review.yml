@@ -1,0 +1,61 @@
+name: opencode-review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - uses: anomalyco/opencode/github@latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        with:
+          model: openai/gpt-5.5
+          prompt: |
+            Review this pull request following the repo-local
+            code-review-excellence skill at
+            .agents/skills/code-review-excellence/SKILL.md.
+
+            Workflow constraints:
+            - You are running in GitHub Actions on the PR head branch.
+            - Local base branches such as main may not exist, and local git
+              history may be shallow.
+            - Do not spend time trying local git diff forms such as
+              `git diff main`, `git diff origin/main`, or merge-base discovery.
+            - Use the GitHub CLI as the source of truth for the PR diff:
+              `gh pr diff ${{ github.event.pull_request.number }} --repo ${{ github.repository }}`.
+            - Use `gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --json title,body,files,commits,reviews,comments,baseRefName,headRefName`
+              for PR metadata when needed.
+            - After identifying changed files from `gh pr diff` or the provided
+              PR context, read only the relevant files and nearby dependencies.
+            - Do not make code changes during review unless explicitly asked.
+
+            Prioritize actionable findings over summary. Focus on:
+            - Correctness bugs and edge cases
+            - Security and data exposure risks
+            - Performance regressions
+            - Missing or weak tests
+            - Maintainability issues that affect future changes
+
+            Avoid repeating findings already made by earlier reviewers unless
+            the current diff still contains a severe unresolved issue and the
+            new comment adds concrete evidence.
+
+            Use severity labels such as [blocking], [important], [nit],
+            and [suggestion]. Keep feedback specific, constructive, and
+            tied to affected files or lines when possible.

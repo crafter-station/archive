@@ -7,7 +7,7 @@ import { WeekCalendar } from "@/components/logs/week-calendar";
 import { getDayDashboard } from "@/lib/log-agent-queries";
 import { DEFAULT_LOG_TIMEZONE, isDateSlug } from "@/lib/log-windows";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 type DayPageProps = {
   params: Promise<{ date: string }>;
