@@ -185,27 +185,33 @@ async function upsertMessage(message: WhatsAppMessage) {
     .returning();
 
   await uploadMissingMedia(storedMessage, chatJid, media);
-  await updateAudioTranscription(storedMessage.id);
+  await updateAudioTranscription(storedMessage);
   await resolveRepliesToMessage(storedMessage);
   await resolveReactionsToMessage(storedMessage);
 }
 
-async function updateAudioTranscription(messageId: string) {
+async function updateAudioTranscription(storedMessage: Message) {
+  if (
+    storedMessage.messageType !== "audio" ||
+    storedMessage.audioTranscription
+  ) {
+    return;
+  }
+
   const [audio] = await db
     .select({
       blobUrl: messageMedia.blobUrl,
-      mediaType: messageMedia.mediaType,
     })
     .from(messageMedia)
     .where(
       and(
-        eq(messageMedia.messageId, messageId),
+        eq(messageMedia.messageId, storedMessage.id),
         eq(messageMedia.mediaType, "audio"),
       ),
     )
     .limit(1);
 
-  if (!audio?.blobUrl || audio.mediaType !== "audio") {
+  if (!audio?.blobUrl) {
     return;
   }
 
@@ -214,7 +220,7 @@ async function updateAudioTranscription(messageId: string) {
     await db
       .update(messages)
       .set({ audioTranscription, updatedAt: new Date() })
-      .where(eq(messages.id, messageId));
+      .where(eq(messages.id, storedMessage.id));
   } catch (error) {
     console.error("Failed to transcribe audio message", error);
   }
