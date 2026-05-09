@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { tasks } from "@trigger.dev/sdk/v3";
 import { and, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/db/client";
@@ -9,7 +10,6 @@ import {
   messages,
   webhookEvents,
 } from "@/db/schema";
-import { transcribeAudioFromUrl } from "@/lib/audio-transcription";
 import { GROUP_CHAT_JID } from "@/lib/whatsapp-constants";
 import {
   extractMediaMessages,
@@ -185,12 +185,12 @@ async function upsertMessage(message: WhatsAppMessage) {
     .returning();
 
   await uploadMissingMedia(storedMessage, chatJid, media);
-  await updateAudioTranscription(storedMessage);
+  await enqueueAudioTranscription(storedMessage);
   await resolveRepliesToMessage(storedMessage);
   await resolveReactionsToMessage(storedMessage);
 }
 
-async function updateAudioTranscription(storedMessage: Message) {
+async function enqueueAudioTranscription(storedMessage: Message) {
   if (
     storedMessage.messageType !== "audio" ||
     storedMessage.audioTranscription
@@ -198,31 +198,12 @@ async function updateAudioTranscription(storedMessage: Message) {
     return;
   }
 
-  const [audio] = await db
-    .select({
-      blobUrl: messageMedia.blobUrl,
-    })
-    .from(messageMedia)
-    .where(
-      and(
-        eq(messageMedia.messageId, storedMessage.id),
-        eq(messageMedia.mediaType, "audio"),
-      ),
-    )
-    .limit(1);
-
-  if (!audio?.blobUrl) {
-    return;
-  }
-
   try {
-    const audioTranscription = await transcribeAudioFromUrl(audio.blobUrl);
-    await db
-      .update(messages)
-      .set({ audioTranscription, updatedAt: new Date() })
-      .where(eq(messages.id, storedMessage.id));
+    await tasks.trigger("transcribe-audio-message", {
+      messageId: storedMessage.id,
+    });
   } catch (error) {
-    console.error("Failed to transcribe audio message", error);
+    console.error("Failed to enqueue audio transcription", error);
   }
 }
 
