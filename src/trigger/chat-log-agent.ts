@@ -1,4 +1,4 @@
-import { logger, schedules } from "@trigger.dev/sdk/v3";
+import { logger, schedules, tasks } from "@trigger.dev/sdk/v3";
 
 import { LOG_AGENT_MODEL, runLogAgent } from "@/lib/log-agent";
 import {
@@ -8,8 +8,12 @@ import {
   getCompletedLog,
   getMessagesForAgentContext,
   getPreviousLog,
+  hasBlockingAudioTranscriptions,
+  recoverStaleAudioTranscriptions,
 } from "@/lib/log-agent-queries";
 import { DEFAULT_LOG_TIMEZONE, getLogWindow } from "@/lib/log-windows";
+
+const AUDIO_TRANSCRIPTION_RECHECK_DELAY = "1m";
 
 export const chatLogAgentTask = schedules.task({
   id: "chat-log-agent",
@@ -39,6 +43,31 @@ export const chatLogAgentTask = schedules.task({
     });
 
     try {
+      await recoverStaleAudioTranscriptions(
+        window.contextStartUtc,
+        window.windowEndUtc,
+      );
+
+      const hasBlockingAudio = await hasBlockingAudioTranscriptions(
+        window.contextStartUtc,
+        window.windowEndUtc,
+      );
+
+      if (hasBlockingAudio) {
+        logger.log("Log window has blocking audio transcriptions", {
+          logId: log.id,
+        });
+        await tasks.trigger(
+          "chat-log-agent",
+          { timestamp: window.windowEndUtc },
+          {
+            delay: AUDIO_TRANSCRIPTION_RECHECK_DELAY,
+          },
+        );
+
+        return { logId: log.id, status: "waiting_for_audio" };
+      }
+
       const messages = await getMessagesForAgentContext(
         window.contextStartUtc,
         window.windowEndUtc,

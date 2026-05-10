@@ -145,4 +145,25 @@ describe("serializeMessagesForLogAgent", () => {
     ]);
     expect(result).not.toHaveProperty("images");
   });
+
+  test("includes audio transcription text", () => {
+    const result = serializeMessagesForLogAgent(
+      [
+        createMessage({
+          id: "message-1",
+          messageType: "audio",
+          body: null,
+          audioTranscription: "Voice note summary",
+        }),
+      ],
+      "America/Bogota",
+    );
+
+    expect(result.messages).toEqual([
+      expect.objectContaining({
+        id: "message-1",
+        text: "Audio transcription: Voice note summary",
+      }),
+    ]);
+  });
 });

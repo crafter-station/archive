@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, exists, gte, lt, or } from "drizzle-orm";
+import { and, asc, desc, eq, exists, gte, inArray, lt, or } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   events,
@@ -12,6 +12,8 @@ import { getLocalDateRangeUtc } from "@/lib/log-windows";
 import { GROUP_CHAT_JID } from "@/lib/whatsapp-constants";
 
 export const LOG_AGENT_PROMPT_VERSION = "2026-05-09.v1";
+const STALE_PENDING_AUDIO_TRANSCRIPTION_MS = 15 * 60 * 1000;
+const STALE_PROCESSING_AUDIO_TRANSCRIPTION_MS = 65 * 60 * 1000;
 
 export async function createOrReuseRunningLog({
   contextStartUtc,
@@ -139,6 +141,64 @@ export async function getMessagesForAgentContext(
       sender: true,
     },
   });
+}
+
+export async function hasBlockingAudioTranscriptions(
+  windowStartUtc: Date,
+  windowEndUtc: Date,
+) {
+  const [blockingMessage] = await db
+    .select({ id: messages.id })
+    .from(messages)
+    .where(
+      and(
+        eq(messages.chatJid, GROUP_CHAT_JID),
+        gte(messages.receivedAt, windowStartUtc),
+        lt(messages.receivedAt, windowEndUtc),
+        inArray(messages.audioTranscriptionStatus, ["pending", "processing"]),
+      ),
+    )
+    .limit(1);
+
+  return Boolean(blockingMessage);
+}
+
+export async function recoverStaleAudioTranscriptions(
+  windowStartUtc: Date,
+  windowEndUtc: Date,
+) {
+  const now = new Date();
+  const stalePendingBefore = new Date(
+    now.getTime() - STALE_PENDING_AUDIO_TRANSCRIPTION_MS,
+  );
+  const staleProcessingBefore = new Date(
+    now.getTime() - STALE_PROCESSING_AUDIO_TRANSCRIPTION_MS,
+  );
+
+  await db
+    .update(messages)
+    .set({
+      audioTranscriptionError: "Audio transcription timed out",
+      audioTranscriptionStatus: "failed",
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(messages.chatJid, GROUP_CHAT_JID),
+        gte(messages.receivedAt, windowStartUtc),
+        lt(messages.receivedAt, windowEndUtc),
+        or(
+          and(
+            eq(messages.audioTranscriptionStatus, "pending"),
+            lt(messages.updatedAt, stalePendingBefore),
+          ),
+          and(
+            eq(messages.audioTranscriptionStatus, "processing"),
+            lt(messages.updatedAt, staleProcessingBefore),
+          ),
+        ),
+      ),
+    );
 }
 
 export async function listActiveMemories() {

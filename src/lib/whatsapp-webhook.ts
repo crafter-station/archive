@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { tasks } from "@trigger.dev/sdk/v3";
 import { and, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/db/client";
@@ -184,8 +185,66 @@ async function upsertMessage(message: WhatsAppMessage) {
     .returning();
 
   await uploadMissingMedia(storedMessage, chatJid, media);
+  await enqueueAudioTranscription(storedMessage.id, storedMessage.messageType);
   await resolveRepliesToMessage(storedMessage);
   await resolveReactionsToMessage(storedMessage);
+}
+
+async function enqueueAudioTranscription(
+  messageId: string,
+  messageType: Message["messageType"],
+) {
+  if (messageType !== "audio") {
+    return;
+  }
+
+  const [queuedMessage] = await db
+    .update(messages)
+    .set({
+      audioTranscriptionError: null,
+      audioTranscriptionStatus: "pending",
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(messages.id, messageId),
+        isNull(messages.audioTranscription),
+        eq(messages.audioTranscriptionStatus, "not_required"),
+      ),
+    )
+    .returning({ id: messages.id });
+
+  if (!queuedMessage) {
+    return;
+  }
+
+  try {
+    await tasks.trigger(
+      "transcribe-audio-message",
+      { messageId },
+      {
+        idempotencyKey: `audio-transcription:${messageId}`,
+      },
+    );
+  } catch (error) {
+    await db
+      .update(messages)
+      .set({
+        audioTranscriptionError:
+          error instanceof Error ? error.message : String(error),
+        audioTranscriptionStatus: "not_required",
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(messages.id, messageId),
+          isNull(messages.audioTranscription),
+          eq(messages.audioTranscriptionStatus, "pending"),
+        ),
+      );
+
+    throw error;
+  }
 }
 
 async function upsertReaction(
