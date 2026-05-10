@@ -6,6 +6,7 @@ import { transcribeAudioFromUrl } from "@/lib/audio-transcription";
 
 const MAX_TRANSCRIPTION_FILE_SIZE_BYTES = 25 * 1024 * 1024;
 const AUDIO_TRANSCRIPTION_MAX_ATTEMPTS = 3;
+const AUDIO_TRANSCRIPTION_MAX_DURATION_SECONDS = 60 * 60;
 
 async function updateTranscriptionFailure(
   messageId: string,
@@ -25,6 +26,7 @@ async function updateTranscriptionFailure(
 
 export const transcribeAudioMessageTask = task({
   id: "transcribe-audio-message",
+  maxDuration: AUDIO_TRANSCRIPTION_MAX_DURATION_SECONDS,
   retry: {
     factor: 2,
     maxAttempts: AUDIO_TRANSCRIPTION_MAX_ATTEMPTS,
@@ -114,7 +116,7 @@ export const transcribeAudioMessageTask = task({
       .update(messages)
       .set({
         audioTranscriptionError: null,
-        audioTranscriptionStatus: "pending",
+        audioTranscriptionStatus: "processing",
         updatedAt: new Date(),
       })
       .where(eq(messages.id, payload.messageId));

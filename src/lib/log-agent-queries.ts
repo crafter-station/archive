@@ -12,7 +12,8 @@ import { getLocalDateRangeUtc } from "@/lib/log-windows";
 import { GROUP_CHAT_JID } from "@/lib/whatsapp-constants";
 
 export const LOG_AGENT_PROMPT_VERSION = "2026-05-09.v1";
-const STALE_AUDIO_TRANSCRIPTION_MS = 15 * 60 * 1000;
+const STALE_PENDING_AUDIO_TRANSCRIPTION_MS = 15 * 60 * 1000;
+const STALE_PROCESSING_AUDIO_TRANSCRIPTION_MS = 65 * 60 * 1000;
 
 export async function createOrReuseRunningLog({
   contextStartUtc,
@@ -167,7 +168,12 @@ export async function recoverStaleAudioTranscriptions(
   windowEndUtc: Date,
 ) {
   const now = new Date();
-  const staleBefore = new Date(now.getTime() - STALE_AUDIO_TRANSCRIPTION_MS);
+  const stalePendingBefore = new Date(
+    now.getTime() - STALE_PENDING_AUDIO_TRANSCRIPTION_MS,
+  );
+  const staleProcessingBefore = new Date(
+    now.getTime() - STALE_PROCESSING_AUDIO_TRANSCRIPTION_MS,
+  );
 
   await db
     .update(messages)
@@ -181,8 +187,16 @@ export async function recoverStaleAudioTranscriptions(
         eq(messages.chatJid, GROUP_CHAT_JID),
         gte(messages.receivedAt, windowStartUtc),
         lt(messages.receivedAt, windowEndUtc),
-        eq(messages.audioTranscriptionStatus, "pending"),
-        lt(messages.updatedAt, staleBefore),
+        or(
+          and(
+            eq(messages.audioTranscriptionStatus, "pending"),
+            lt(messages.updatedAt, stalePendingBefore),
+          ),
+          and(
+            eq(messages.audioTranscriptionStatus, "processing"),
+            lt(messages.updatedAt, staleProcessingBefore),
+          ),
+        ),
       ),
     );
 }
