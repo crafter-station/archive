@@ -9,6 +9,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "start": "next start",
+    "test": "bun test",
     "lint": "biome check",
     "format": "biome format --write"
   },
