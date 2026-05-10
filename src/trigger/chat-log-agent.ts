@@ -43,7 +43,7 @@ export const chatLogAgentTask = schedules.task({
 
     try {
       const hasPendingAudio = await hasPendingAudioTranscriptions(
-        window.windowStartUtc,
+        window.contextStartUtc,
         window.windowEndUtc,
       );
 
