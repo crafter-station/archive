@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, exists, gt, gte, lt, or } from "drizzle-orm";
+import { and, asc, desc, eq, exists, gte, inArray, lt, or } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   events,
@@ -12,7 +12,7 @@ import { getLocalDateRangeUtc } from "@/lib/log-windows";
 import { GROUP_CHAT_JID } from "@/lib/whatsapp-constants";
 
 export const LOG_AGENT_PROMPT_VERSION = "2026-05-09.v1";
-const AUDIO_TRANSCRIPTION_RETRY_WINDOW_MS = 60 * 1000;
+const STALE_AUDIO_TRANSCRIPTION_MS = 15 * 60 * 1000;
 
 export async function createOrReuseRunningLog({
   contextStartUtc,
@@ -146,9 +146,6 @@ export async function hasBlockingAudioTranscriptions(
   windowStartUtc: Date,
   windowEndUtc: Date,
 ) {
-  const retryingSince = new Date(
-    Date.now() - AUDIO_TRANSCRIPTION_RETRY_WINDOW_MS,
-  );
   const [blockingMessage] = await db
     .select({ id: messages.id })
     .from(messages)
@@ -157,18 +154,37 @@ export async function hasBlockingAudioTranscriptions(
         eq(messages.chatJid, GROUP_CHAT_JID),
         gte(messages.receivedAt, windowStartUtc),
         lt(messages.receivedAt, windowEndUtc),
-        or(
-          eq(messages.audioTranscriptionStatus, "pending"),
-          and(
-            eq(messages.audioTranscriptionStatus, "failed"),
-            gt(messages.updatedAt, retryingSince),
-          ),
-        ),
+        inArray(messages.audioTranscriptionStatus, ["pending", "processing"]),
       ),
     )
     .limit(1);
 
   return Boolean(blockingMessage);
+}
+
+export async function recoverStaleAudioTranscriptions(
+  windowStartUtc: Date,
+  windowEndUtc: Date,
+) {
+  const now = new Date();
+  const staleBefore = new Date(now.getTime() - STALE_AUDIO_TRANSCRIPTION_MS);
+
+  await db
+    .update(messages)
+    .set({
+      audioTranscriptionError: "Audio transcription timed out",
+      audioTranscriptionStatus: "failed",
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(messages.chatJid, GROUP_CHAT_JID),
+        gte(messages.receivedAt, windowStartUtc),
+        lt(messages.receivedAt, windowEndUtc),
+        eq(messages.audioTranscriptionStatus, "pending"),
+        lt(messages.updatedAt, staleBefore),
+      ),
+    );
 }
 
 export async function listActiveMemories() {

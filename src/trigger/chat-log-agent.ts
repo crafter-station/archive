@@ -9,10 +9,11 @@ import {
   getMessagesForAgentContext,
   getPreviousLog,
   hasBlockingAudioTranscriptions,
+  recoverStaleAudioTranscriptions,
 } from "@/lib/log-agent-queries";
 import { DEFAULT_LOG_TIMEZONE, getLogWindow } from "@/lib/log-windows";
 
-const AUDIO_TRANSCRIPTION_RECHECK_DELAY = "5m";
+const AUDIO_TRANSCRIPTION_RECHECK_DELAY = "1m";
 
 export const chatLogAgentTask = schedules.task({
   id: "chat-log-agent",
@@ -42,6 +43,11 @@ export const chatLogAgentTask = schedules.task({
     });
 
     try {
+      await recoverStaleAudioTranscriptions(
+        window.contextStartUtc,
+        window.windowEndUtc,
+      );
+
       const hasBlockingAudio = await hasBlockingAudioTranscriptions(
         window.contextStartUtc,
         window.windowEndUtc,

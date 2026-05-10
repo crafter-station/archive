@@ -5,9 +5,42 @@ import { messageMedia, messages } from "@/db/schema";
 import { transcribeAudioFromUrl } from "@/lib/audio-transcription";
 
 const MAX_TRANSCRIPTION_FILE_SIZE_BYTES = 25 * 1024 * 1024;
+const AUDIO_TRANSCRIPTION_MAX_ATTEMPTS = 3;
+
+async function updateTranscriptionFailure(
+  messageId: string,
+  error: unknown,
+  status: "failed" | "pending",
+) {
+  await db
+    .update(messages)
+    .set({
+      audioTranscriptionError:
+        error instanceof Error ? error.message : String(error),
+      audioTranscriptionStatus: status,
+      updatedAt: new Date(),
+    })
+    .where(eq(messages.id, messageId));
+}
 
 export const transcribeAudioMessageTask = task({
   id: "transcribe-audio-message",
+  retry: {
+    factor: 2,
+    maxAttempts: AUDIO_TRANSCRIPTION_MAX_ATTEMPTS,
+    maxTimeoutInMs: 10_000,
+    minTimeoutInMs: 1000,
+    randomize: true,
+  },
+  catchError: async ({ ctx, error, payload }) => {
+    const isFinalAttempt =
+      ctx.attempt.number >= AUDIO_TRANSCRIPTION_MAX_ATTEMPTS;
+    await updateTranscriptionFailure(
+      payload.messageId,
+      error,
+      isFinalAttempt ? "failed" : "pending",
+    );
+  },
   run: async (payload: { messageId: string }) => {
     const [message] = await db
       .select({
@@ -105,15 +138,6 @@ export const transcribeAudioMessageTask = task({
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-
-      await db
-        .update(messages)
-        .set({
-          audioTranscriptionError: errorMessage,
-          audioTranscriptionStatus: "failed",
-          updatedAt: new Date(),
-        })
-        .where(eq(messages.id, payload.messageId));
       logger.error("Audio transcription failed", {
         error: errorMessage,
         messageId: payload.messageId,
