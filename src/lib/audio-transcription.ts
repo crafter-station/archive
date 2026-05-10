@@ -17,12 +17,13 @@ export async function transcribeAudioFromUrl(input: {
   }
 
   const audioBuffer = await audioResponse.arrayBuffer();
-  const fileName = getAudioFileName(input.fileName, input.mimeType);
+  const mimeType = normalizeMimeType(input.mimeType);
+  const fileName = getAudioFileName(input.fileName, mimeType);
   const formData = new FormData();
   formData.append("model", TRANSCRIPTION_MODEL);
   formData.append(
     "file",
-    new Blob([audioBuffer], { type: input.mimeType ?? "audio/ogg" }),
+    new Blob([audioBuffer], { type: mimeType }),
     fileName,
   );
 
@@ -50,12 +51,19 @@ export async function transcribeAudioFromUrl(input: {
 }
 
 function getAudioFileName(fileName?: string | null, mimeType?: string | null) {
+  const extension = extensionFromMimeType(mimeType);
+
   if (fileName?.trim()) {
-    return fileName.trim();
+    const parsed = path.parse(fileName.trim());
+    return `${parsed.name}${extension}`;
   }
 
-  const extension = extensionFromMimeType(mimeType);
   return `audio${extension}`;
+}
+
+function normalizeMimeType(mimeType?: string | null) {
+  const normalized = mimeType?.split(";")[0]?.trim().toLowerCase();
+  return normalized || "audio/ogg";
 }
 
 function extensionFromMimeType(mimeType?: string | null) {

@@ -8,6 +8,7 @@ import {
   getCompletedLog,
   getMessagesForAgentContext,
   getPreviousLog,
+  hasPendingAudioTranscriptions,
 } from "@/lib/log-agent-queries";
 import { DEFAULT_LOG_TIMEZONE, getLogWindow } from "@/lib/log-windows";
 
@@ -39,6 +40,18 @@ export const chatLogAgentTask = schedules.task({
     });
 
     try {
+      const hasPendingAudio = await hasPendingAudioTranscriptions(
+        window.windowStartUtc,
+        window.windowEndUtc,
+      );
+
+      if (hasPendingAudio) {
+        logger.log("Log window has pending audio transcriptions", {
+          logId: log.id,
+        });
+        return { logId: log.id, status: "waiting_for_audio" };
+      }
+
       const messages = await getMessagesForAgentContext(
         window.contextStartUtc,
         window.windowEndUtc,

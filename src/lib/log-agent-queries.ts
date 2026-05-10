@@ -138,6 +138,26 @@ export async function getMessagesForAgentContext(
   });
 }
 
+export async function hasPendingAudioTranscriptions(
+  windowStartUtc: Date,
+  windowEndUtc: Date,
+) {
+  const [pendingMessage] = await db
+    .select({ id: messages.id })
+    .from(messages)
+    .where(
+      and(
+        eq(messages.chatJid, GROUP_CHAT_JID),
+        gte(messages.receivedAt, windowStartUtc),
+        lt(messages.receivedAt, windowEndUtc),
+        eq(messages.audioTranscriptionStatus, "pending"),
+      ),
+    )
+    .limit(1);
+
+  return Boolean(pendingMessage);
+}
+
 export async function listActiveMemories() {
   return db.query.memories.findMany({
     orderBy: (memory, { desc }) => [desc(memory.updatedAt)],
