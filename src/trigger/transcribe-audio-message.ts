@@ -100,7 +100,7 @@ export const transcribeAudioMessageTask = task({
         .update(messages)
         .set({
           audioTranscriptionError: errorMessage,
-          audioTranscriptionStatus: "failed",
+          audioTranscriptionStatus: "pending",
           updatedAt: new Date(),
         })
         .where(eq(messages.id, payload.messageId));

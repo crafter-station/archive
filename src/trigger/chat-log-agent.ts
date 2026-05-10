@@ -12,6 +12,13 @@ import {
 } from "@/lib/log-agent-queries";
 import { DEFAULT_LOG_TIMEZONE, getLogWindow } from "@/lib/log-windows";
 
+class PendingAudioTranscriptionsError extends Error {
+  constructor() {
+    super("Log window has pending audio transcriptions");
+    this.name = "PendingAudioTranscriptionsError";
+  }
+}
+
 export const chatLogAgentTask = schedules.task({
   id: "chat-log-agent",
   cron: { pattern: "*/30 * * * *", timezone: DEFAULT_LOG_TIMEZONE },
@@ -49,7 +56,7 @@ export const chatLogAgentTask = schedules.task({
         logger.log("Log window has pending audio transcriptions", {
           logId: log.id,
         });
-        return { logId: log.id, status: "waiting_for_audio" };
+        throw new PendingAudioTranscriptionsError();
       }
 
       const messages = await getMessagesForAgentContext(
@@ -73,7 +80,9 @@ export const chatLogAgentTask = schedules.task({
 
       return { logId: log.id, status: "completed" };
     } catch (error) {
-      await failLog(log.id, error);
+      if (!(error instanceof PendingAudioTranscriptionsError)) {
+        await failLog(log.id, error);
+      }
       throw error;
     }
   },
