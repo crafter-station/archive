@@ -77,6 +77,15 @@ export const transcribeAudioMessageTask = task({
       return;
     }
 
+    await db
+      .update(messages)
+      .set({
+        audioTranscriptionError: null,
+        audioTranscriptionStatus: "pending",
+        updatedAt: new Date(),
+      })
+      .where(eq(messages.id, payload.messageId));
+
     try {
       const transcription = await transcribeAudioFromUrl({
         audioUrl: audio.blobUrl,

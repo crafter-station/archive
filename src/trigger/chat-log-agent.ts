@@ -56,8 +56,6 @@ export const chatLogAgentTask = schedules.task({
           { timestamp: window.windowEndUtc },
           {
             delay: AUDIO_TRANSCRIPTION_RECHECK_DELAY,
-            idempotencyKey: `chat-log-agent:audio-recheck:${window.windowEndUtc.toISOString()}`,
-            idempotencyKeyTTL: "10m",
           },
         );
 
