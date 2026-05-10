@@ -13,12 +13,27 @@ export const transcribeAudioMessageTask = task({
       .select({
         id: messages.id,
         audioTranscription: messages.audioTranscription,
+        audioTranscriptionStatus: messages.audioTranscriptionStatus,
       })
       .from(messages)
       .where(eq(messages.id, payload.messageId))
       .limit(1);
 
-    if (!message || message.audioTranscription) {
+    if (!message) {
+      return;
+    }
+
+    if (message.audioTranscription) {
+      if (message.audioTranscriptionStatus !== "completed") {
+        await db
+          .update(messages)
+          .set({
+            audioTranscriptionError: null,
+            audioTranscriptionStatus: "completed",
+            updatedAt: new Date(),
+          })
+          .where(eq(messages.id, payload.messageId));
+      }
       return;
     }
 

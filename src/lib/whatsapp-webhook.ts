@@ -198,22 +198,53 @@ async function enqueueAudioTranscription(
     return;
   }
 
-  await db
+  const [queuedMessage] = await db
     .update(messages)
     .set({
       audioTranscriptionError: null,
       audioTranscriptionStatus: "pending",
       updatedAt: new Date(),
     })
-    .where(eq(messages.id, messageId));
+    .where(
+      and(
+        eq(messages.id, messageId),
+        isNull(messages.audioTranscription),
+        eq(messages.audioTranscriptionStatus, "not_required"),
+      ),
+    )
+    .returning({ id: messages.id });
 
-  await tasks.trigger(
-    "transcribe-audio-message",
-    { messageId },
-    {
-      idempotencyKey: `audio-transcription:${messageId}`,
-    },
-  );
+  if (!queuedMessage) {
+    return;
+  }
+
+  try {
+    await tasks.trigger(
+      "transcribe-audio-message",
+      { messageId },
+      {
+        idempotencyKey: `audio-transcription:${messageId}`,
+      },
+    );
+  } catch (error) {
+    await db
+      .update(messages)
+      .set({
+        audioTranscriptionError:
+          error instanceof Error ? error.message : String(error),
+        audioTranscriptionStatus: "not_required",
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(messages.id, messageId),
+          isNull(messages.audioTranscription),
+          eq(messages.audioTranscriptionStatus, "pending"),
+        ),
+      );
+
+    throw error;
+  }
 }
 
 async function upsertReaction(
