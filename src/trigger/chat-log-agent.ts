@@ -12,6 +12,8 @@ import {
 } from "@/lib/log-agent-queries";
 import { DEFAULT_LOG_TIMEZONE, getLogWindow } from "@/lib/log-windows";
 
+const AUDIO_TRANSCRIPTION_WAIT_MS = 5 * 60 * 1000;
+
 class PendingAudioTranscriptionsError extends Error {
   constructor() {
     super("Log window has pending audio transcriptions");
@@ -50,6 +52,7 @@ export const chatLogAgentTask = schedules.task({
       const hasPendingAudio = await hasPendingAudioTranscriptions(
         window.windowStartUtc,
         window.windowEndUtc,
+        new Date(Date.now() - AUDIO_TRANSCRIPTION_WAIT_MS),
       );
 
       if (hasPendingAudio) {

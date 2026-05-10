@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, exists, gte, lt, or } from "drizzle-orm";
+import { and, asc, desc, eq, exists, gt, gte, lt, or } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   events,
@@ -141,6 +141,7 @@ export async function getMessagesForAgentContext(
 export async function hasPendingAudioTranscriptions(
   windowStartUtc: Date,
   windowEndUtc: Date,
+  pendingSince: Date,
 ) {
   const [pendingMessage] = await db
     .select({ id: messages.id })
@@ -151,6 +152,7 @@ export async function hasPendingAudioTranscriptions(
         gte(messages.receivedAt, windowStartUtc),
         lt(messages.receivedAt, windowEndUtc),
         eq(messages.audioTranscriptionStatus, "pending"),
+        gt(messages.updatedAt, pendingSince),
       ),
     )
     .limit(1);
