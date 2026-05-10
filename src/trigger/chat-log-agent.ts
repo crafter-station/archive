@@ -1,4 +1,4 @@
-import { logger, schedules } from "@trigger.dev/sdk/v3";
+import { logger, schedules, tasks } from "@trigger.dev/sdk/v3";
 
 import { LOG_AGENT_MODEL, runLogAgent } from "@/lib/log-agent";
 import {
@@ -12,14 +12,7 @@ import {
 } from "@/lib/log-agent-queries";
 import { DEFAULT_LOG_TIMEZONE, getLogWindow } from "@/lib/log-windows";
 
-const AUDIO_TRANSCRIPTION_WAIT_MS = 5 * 60 * 1000;
-
-class PendingAudioTranscriptionsError extends Error {
-  constructor() {
-    super("Log window has pending audio transcriptions");
-    this.name = "PendingAudioTranscriptionsError";
-  }
-}
+const AUDIO_TRANSCRIPTION_RECHECK_DELAY = "5m";
 
 export const chatLogAgentTask = schedules.task({
   id: "chat-log-agent",
@@ -52,14 +45,23 @@ export const chatLogAgentTask = schedules.task({
       const hasPendingAudio = await hasPendingAudioTranscriptions(
         window.windowStartUtc,
         window.windowEndUtc,
-        new Date(Date.now() - AUDIO_TRANSCRIPTION_WAIT_MS),
       );
 
       if (hasPendingAudio) {
         logger.log("Log window has pending audio transcriptions", {
           logId: log.id,
         });
-        throw new PendingAudioTranscriptionsError();
+        await tasks.trigger(
+          "chat-log-agent",
+          { timestamp: window.windowEndUtc },
+          {
+            delay: AUDIO_TRANSCRIPTION_RECHECK_DELAY,
+            idempotencyKey: `chat-log-agent:audio-recheck:${window.windowEndUtc.toISOString()}`,
+            idempotencyKeyTTL: "10m",
+          },
+        );
+
+        return { logId: log.id, status: "waiting_for_audio" };
       }
 
       const messages = await getMessagesForAgentContext(
@@ -83,9 +85,7 @@ export const chatLogAgentTask = schedules.task({
 
       return { logId: log.id, status: "completed" };
     } catch (error) {
-      if (!(error instanceof PendingAudioTranscriptionsError)) {
-        await failLog(log.id, error);
-      }
+      await failLog(log.id, error);
       throw error;
     }
   },

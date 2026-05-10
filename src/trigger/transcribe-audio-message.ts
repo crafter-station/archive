@@ -5,7 +5,6 @@ import { messageMedia, messages } from "@/db/schema";
 import { transcribeAudioFromUrl } from "@/lib/audio-transcription";
 
 const MAX_TRANSCRIPTION_FILE_SIZE_BYTES = 25 * 1024 * 1024;
-const TRANSCRIPTION_STALE_PENDING_MS = 5 * 60 * 1000;
 
 export const transcribeAudioMessageTask = task({
   id: "transcribe-audio-message",
@@ -15,7 +14,6 @@ export const transcribeAudioMessageTask = task({
         id: messages.id,
         audioTranscription: messages.audioTranscription,
         audioTranscriptionStatus: messages.audioTranscriptionStatus,
-        updatedAt: messages.updatedAt,
       })
       .from(messages)
       .where(eq(messages.id, payload.messageId))
@@ -98,15 +96,12 @@ export const transcribeAudioMessageTask = task({
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      const pendingTimedOut =
-        message.updatedAt.getTime() <
-        Date.now() - TRANSCRIPTION_STALE_PENDING_MS;
 
       await db
         .update(messages)
         .set({
           audioTranscriptionError: errorMessage,
-          audioTranscriptionStatus: pendingTimedOut ? "failed" : "pending",
+          audioTranscriptionStatus: "failed",
           updatedAt: new Date(),
         })
         .where(eq(messages.id, payload.messageId));
