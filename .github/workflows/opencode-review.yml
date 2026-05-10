@@ -41,6 +41,9 @@ jobs:
               `gh pr diff ${{ github.event.pull_request.number }} --repo ${{ github.repository }}`.
             - Use `gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --json title,body,files,commits,reviews,comments,baseRefName,headRefName`
               for PR metadata when needed.
+            - Treat provided PR history, review comments, and PR comments as
+              review context. Check whether previously reported findings have
+              been fixed in the current diff before adding new findings.
             - After identifying changed files from `gh pr diff` or the provided
               PR context, read only the relevant files and nearby dependencies.
             - Do not make code changes during review unless explicitly asked.
@@ -52,9 +55,18 @@ jobs:
             - Missing or weak tests
             - Maintainability issues that affect future changes
 
-            Avoid repeating findings already made by earlier reviewers unless
-            the current diff still contains a severe unresolved issue and the
-            new comment adds concrete evidence.
+            Prior review follow-up:
+            - Identify actionable findings from earlier reviewers in the PR
+              history, including bot comments.
+            - Verify each earlier finding against the current diff and relevant
+              files before deciding whether it is fixed or still applies.
+            - If an earlier finding is still unresolved, include it in your
+              findings with current file/line evidence and mention it was
+              previously raised.
+            - If an earlier finding appears fixed, do not repeat it as a new
+              finding.
+            - Avoid repeating prior findings unless the current diff still
+              contains the issue and your comment adds concrete evidence.
 
             Use severity labels such as [blocking], [important], [nit],
             and [suggestion]. Keep feedback specific, constructive, and
